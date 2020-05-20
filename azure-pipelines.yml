@@ -1,19 +1,41 @@
 # Xcode
 # Build, test, and archive an Xcode workspace on macOS.
-# Add steps that install certificates, test, sign, and distribute the app, save build artifacts, and more:
+# Add steps that install certificates, test, sign, and distribute an app, save build artifacts, and more:
 # https://docs.microsoft.com/azure/devops/pipelines/languages/xcode
 
-variables:
-  scheme: ''
-  sdk: 'iphoneos'
-  configuration: 'Release'
+trigger:
+- master
+
+pool:
+  vmImage: 'macos-latest'
 
 steps:
+
+- task: CocoaPods@0
+  inputs:
+    forceRepoUpdate: true
+  displayName: 'pod install using the CocoaPods task with a forced repo update and a custom project directory'
+
 - task: Xcode@5
   inputs:
-    sdk: '$(sdk)'
-    scheme: '$(scheme)'
-    configuration: '$(configuration)'
-    xcodeVersion: 'default' # Options: default, 10, 9, 8, specifyPath
+    actions: 'build'
+    scheme: ''
+    sdk: 'iphoneos'
+    configuration: 'Release'
     exportPath: '$(agent.buildDirectory)/output/$(sdk)/$(configuration)'
-    packageApp: false
+    signingOption: 'nosign'
+    xcWorkspacePath: '**/*.xcodeproj/project.xcworkspace'
+    useXcpretty: false
+    xcodeVersion: 'default' # Options: 8, 9, 10, default, specifyPath
+
+- task: CopyFiles@2
+  inputs:
+    contents: '**/*.ipa'
+    sourceFolder: $(agent.buildDirectory)
+    targetFolder: $(build.artifactStagingDirectory)    
+- task: PublishBuildArtifacts@1
+  inputs:
+    pathToPublish: $(build.artifactStagingDirectory)
+    artifactName: 'drop'
+    artifactType: 'container'
+  displayName: Publish artifacts
